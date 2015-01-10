@@ -38,10 +38,15 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
 
   new() = new AccountController()
 
-  member this.RedirectToLocal(returnUrl:string) = 
+  member private this.RedirectToLocal(returnUrl:string) = 
     match this.Url.IsLocalUrl(returnUrl) with
     | true -> this.Redirect(returnUrl) :> ActionResult
     | false -> this.RedirectToAction("Index", "Home") :> ActionResult
+
+  member private this.AddErrors(result:IdentityResult) =
+    result.Errors
+    |> Seq.map (fun error -> this.ModelState.AddModelError("", error))
+    |> ignore
 
   //
   // GET: /Account/Login
@@ -56,18 +61,18 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   [<AllowAnonymous>]
   [<ValidateAntiForgeryToken>]
   member this.Login(model:LoginViewModel, returnUrl:string) =
-    // This doesn't count login failures towards account lockout
-    // To enable password failures to trigger account lockout, change to shouldLockout: true
-    let result = 
-      async {
-        let! passSignIn = this.SignInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, shouldLockout = false)
-                          |> Async.AwaitTask
-        return passSignIn
-      } |> Async.StartAsTask
-  
     match this.ModelState.IsValid with
     | false -> this.View(model) :> ActionResult
     | true -> 
+        // This doesn't count login failures towards account lockout
+        // To enable password failures to trigger account lockout, change to shouldLockout: true
+        let result = 
+          async {
+            let! passSignIn = this.SignInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, shouldLockout = false)
+                              |> Async.AwaitTask
+            return passSignIn
+          } |> Async.StartAsTask
+
         match result.Result with
         | SignInStatus.Success -> this.RedirectToLocal(returnUrl)
         | SignInStatus.LockedOut -> this.View("Lockout") :> ActionResult
@@ -100,20 +105,20 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   [<AllowAnonymous>]
   [<ValidateAntiForgeryToken>]
   member this.VerifyCode(model:VerifyCodeViewModel) =
-    // The following code protects for brute force attacks against the two factor codes. 
-    // If a user enters incorrect codes for a specified amount of time then the user account 
-    // will be locked out for a specified amount of time. 
-    // You can configure the account lockout settings in IdentityConfig
-    let twoFactorSignIn = 
-      async {
-        let! result = this.SignInManager.TwoFactorSignInAsync(model.Provider, model.Code, isPersistent =  model.RememberMe, rememberBrowser = model.RememberBrowser)
-                      |> Async.AwaitTask
-        return result
-      } |> Async.StartAsTask
-
     match this.ModelState.IsValid with
     | false -> this.View(model) :> ActionResult
     | true ->
+        // The following code protects for brute force attacks against the two factor codes. 
+        // If a user enters incorrect codes for a specified amount of time then the user account 
+        // will be locked out for a specified amount of time. 
+        // You can configure the account lockout settings in IdentityConfig
+        let twoFactorSignIn = 
+          async {
+            let! result = this.SignInManager.TwoFactorSignInAsync(model.Provider, model.Code, isPersistent =  model.RememberMe, rememberBrowser = model.RememberBrowser)
+                          |> Async.AwaitTask
+            return result
+          } |> Async.StartAsTask
+
         match twoFactorSignIn.Result with
         | SignInStatus.Success -> this.RedirectToLocal(model.ReturnUrl)
         | SignInStatus.LockedOut -> this.View("Lockout") :> ActionResult
@@ -121,3 +126,125 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
         | _ -> 
           this.ModelState.AddModelError("", "Invalid code.")
           this.View(model) :> ActionResult
+
+  //
+  // GET: /Account/Register
+  [<AllowAnonymous>]
+  member this.Register() =
+      this.View()
+
+  //
+  // POST: /Account/Register
+  [<HttpPost>]
+  [<AllowAnonymous>]
+  [<ValidateAntiForgeryToken>]
+  member this.Register(model:RegisterViewModel) =
+    let user = ApplicationUser(UserName = model.Email, Email = model.Email)
+    let um = 
+      async {
+        let! result = this.UserManager.CreateAsync(user, model.Password)
+                      |> Async.AwaitTask
+        return result
+      } |> Async.StartAsTask
+    
+    this.AddErrors(um.Result)
+
+    // For more information on how to enable account confirmation and password reset please visit http://go.microsoft.com/fwlink/?LinkID=320771
+    // Send an email with this link
+    // string code = await UserManager.GenerateEmailConfirmationTokenAsync(user.Id);
+    // var callbackUrl = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, code = code }, protocol: Request.Url.Scheme);
+    // await UserManager.SendEmailAsync(user.Id, "Confirm your account", "Please confirm your account by clicking <a href=\"" + callbackUrl + "\">here</a>");
+
+    if this.ModelState.IsValid && um.Result.Succeeded then
+      let signInManager = 
+        async {
+          let! result = this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false)
+                        |> Async.AwaitIAsyncResult |> Async.Ignore                        
+          return result
+        } |> Async.StartAsTask
+        
+      this.RedirectToAction("Index", "Home") :> ActionResult
+    else  
+      // If we got this far, something failed, redisplay form
+      this.View(model) :> ActionResult
+
+  //
+  // GET: /Account/ConfirmEmail
+  [<AllowAnonymous>]
+  member this.ConfirmEmail(userId:string, code:string) =
+    match userId, code with
+    | null, null -> this.View("Error")
+    | _ ->
+      let result = 
+        async {
+          let! confirmEmail = this.UserManager.ConfirmEmailAsync(userId, code)
+                              |> Async.AwaitTask
+          return confirmEmail
+        } |> Async.StartAsTask
+            
+      let view = match result.Result.Succeeded with
+                | true -> "ConfirmEmail"
+                | false -> "Error"
+
+      this.View(view)
+
+  //
+  // GET: /Account/ForgotPassword
+  [<AllowAnonymous>]
+  member this.ForgotPassword() =
+    this.View()
+
+  //
+  // POST: /Account/ForgotPassword
+  [<HttpPost>]
+  [<AllowAnonymous>]
+  [<ValidateAntiForgeryToken>]
+  member this.ForgotPassword(model:ForgotPasswordViewModel) =
+    
+    //TODO: THIS NEEDS WORK!
+
+    match this.ModelState.IsValid with
+    | true ->
+        let user = 
+          async {
+            let! result = this.UserManager.FindByNameAsync(model.Email)
+                          |> Async.AwaitTask
+            return result
+          } |> Async.StartAsTask
+
+        let isEmailConfirmed =
+          async {
+            let! result = this.UserManager.IsEmailConfirmedAsync(user.Result.Id)
+                          |> Async.AwaitTask
+            return result
+          } |> Async.StartAsTask
+
+        match user.Result, isEmailConfirmed.Result with
+        | null, false -> this.View("ForgotPasswordConfirmation") :> ActionResult
+        // If we got this far, something failed, redisplay form
+        | _ -> this.View(model) :> ActionResult        
+    // If we got this far, something failed, redisplay form
+    | false -> this.View(model) :> ActionResult
+
+    // For more information on how to enable account confirmation and password reset please visit http://go.microsoft.com/fwlink/?LinkID=320771
+    // Send an email with this link
+    // string code = await UserManager.GeneratePasswordResetTokenAsync(user.Id);
+    // var callbackUrl = Url.Action("ResetPassword", "Account", new { userId = user.Id, code = code }, protocol: Request.Url.Scheme);		
+    // await UserManager.SendEmailAsync(user.Id, "Reset Password", "Please reset your password by clicking <a href=\"" + callbackUrl + "\">here</a>");
+    // return RedirectToAction("ForgotPasswordConfirmation", "Account");
+
+  //
+  // GET: /Account/ForgotPasswordConfirmation
+  [<AllowAnonymous>]
+  member this.ForgotPasswordConfirmation() =
+    this.View()
+
+  //
+  // GET: /Account/ResetPassword
+  [<AllowAnonymous>]
+  member this.ResetPassword(code:string) =
+    match code with
+    | null -> this.View("Error")
+    | _ -> this.View()
+  
+      

@@ -36,6 +36,7 @@ type SmsService() =
       // Plug in your SMS service here to send a text message.
       Task.FromResult(0) :> Task
 
+[<AllowNullLiteral>]
 type ApplicationUser() =
   inherit IdentityUser()
 
