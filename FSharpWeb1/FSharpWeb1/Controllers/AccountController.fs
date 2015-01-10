@@ -48,6 +48,39 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     |> Seq.map (fun error -> this.ModelState.AddModelError("", error))
     |> ignore
 
+
+//  type ChallengeResult(provider:string, redirectUri:string, userId:string) =
+//    inherit HttpUnauthorizedResult()
+//      //      public string LoginProvider { get; set; }
+//      //      public string RedirectUri { get; set; }
+//      //      public string UserId { get; set; }
+//
+////  internal class ChallengeResult : HttpUnauthorizedResult
+////  {
+////      public ChallengeResult(string provider, string redirectUri)
+////          : this(provider, redirectUri, null)
+////      {
+////      }
+////
+////      public ChallengeResult(string provider, string redirectUri, string userId)
+////      {
+////          LoginProvider = provider;
+////          RedirectUri = redirectUri;
+////          UserId = userId;
+////      }
+////
+////
+////      public override void ExecuteResult(ControllerContext context)
+////      {
+////          var properties = new AuthenticationProperties { RedirectUri = RedirectUri };
+////          if (UserId != null)
+////          {
+////              properties.Dictionary[XsrfKey] = UserId;
+////          }
+////          context.HttpContext.GetOwinContext().Authentication.Challenge(properties, LoginProvider);
+////      }
+////  }
+
   //
   // GET: /Account/Login
   [<AllowAnonymous>]
@@ -247,4 +280,55 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     | null -> this.View("Error")
     | _ -> this.View()
   
-      
+  //
+  // POST: /Account/ResetPassword
+  [<HttpPost>]
+  [<AllowAnonymous>]
+  [<ValidateAntiForgeryToken>]
+  member this.ResetPassword(model:ResetPasswordViewModel) =
+    
+    //TODO: THIS NEEDS WORK!
+
+    match this.ModelState.IsValid with
+    | false -> this.View(model) :> ActionResult
+    | true ->
+      let user = 
+        async {
+          let! findByName = this.UserManager.FindByNameAsync(model.Email)
+                            |> Async.AwaitTask
+          return findByName
+        } |> Async.StartAsTask
+
+      match user.Result with
+      // Don't reveal that the user does not exist
+      | null -> this.RedirectToAction("ResetPasswordConfirmation", "Account") :> ActionResult
+      | _ ->
+        let result = 
+          async {
+            let! resetPassword = this.UserManager.ResetPasswordAsync(user.Result.Id, model.Code, model.Password)
+                                 |> Async.AwaitTask
+            return resetPassword
+          } |> Async.StartAsTask
+        
+        this.AddErrors(result.Result)
+
+        if (result.Result.Succeeded) then
+          this.RedirectToAction("ResetPasswordConfirmation", "Account") :> ActionResult
+        else
+          this.View() :> ActionResult
+
+  //
+  // GET: /Account/ResetPasswordConfirmation
+  [<AllowAnonymous>]
+  member this.ResetPasswordConfirmation() =
+      this.View()
+
+  //
+  // POST: /Account/ExternalLogin
+//  [<HttpPost>]
+//  [<AllowAnonymous>]
+//  [<ValidateAntiForgeryToken>]
+//  member this.ExternalLogin(provider:string, returnUrl:string) =
+//    // Request a redirect to the external login provider
+//    this.ChallengeResult(provider, Url.Action("ExternalLoginCallback", "Account", { ReturnUrl = returnUrl }))
+//    

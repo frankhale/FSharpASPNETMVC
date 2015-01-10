@@ -29,6 +29,7 @@ type EmailService() =
       Task.FromResult(0) :> Task
 
 type RouteValues = { ReturnUrl:string; RememberMe:bool }
+type ReturnUrl = { ReturnUrl : string }
 
 type SmsService() =
   interface IIdentityMessageService with
