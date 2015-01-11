@@ -28,8 +28,14 @@ type EmailService() =
       // Plug in your email service here to send an email.
       Task.FromResult(0) :> Task
 
-type RouteValues = { ReturnUrl:string; RememberMe:bool }
 type ReturnUrl = { ReturnUrl : string }
+type RouteValues = 
+  { ReturnUrl:string
+    RememberMe:bool }
+type RedirectValues = 
+  { Provider:string
+    ReturnUrl:string
+    RememberMe:bool }
 
 type SmsService() =
   interface IIdentityMessageService with

@@ -1,6 +1,7 @@
 namespace FSharpWeb1.Controllers
 
 open System
+open System.Collections.Generic
 open System.Globalization
 open System.Linq
 open System.Security.Claims
@@ -15,12 +16,34 @@ open FSharpWeb1.Infrastructure
 open FSharpWeb1.Infrastructure.Helpers
 open FSharpWeb1.Models
 
+type ChallengeResult(controller:Controller, provider:string, redirectUri:string, userId:string) = 
+  inherit HttpUnauthorizedResult()
+
+  member val private Controller = controller with get, set
+  member val LoginProvider = provider with get, set
+  member val RedirectUri = redirectUri with get, set
+  member val UserId = userId with get, set  
+
+  new(controller:Controller, provider:string, redirectUri:string) = 
+    ChallengeResult(controller, provider, redirectUri, null)
+
+  override this.ExecuteResult(context:ControllerContext) =
+    let properties = AuthenticationProperties(RedirectUri = this.RedirectUri)    
+
+    match this.UserId with
+    | null -> ()
+    | _ -> properties.Dictionary.["XsrfId"] <- this.UserId
+    
+    this.Controller.ControllerContext.HttpContext.GetOwinContext().Authentication.Challenge(properties, this.LoginProvider)
+
 [<Authorize>]
 type AccountController(userManager:ApplicationUserManager, signInManager:ApplicationSignInManager) =
   inherit Controller()
 
   let mutable _signInManager : ApplicationSignInManager = signInManager
   let mutable _userManager : ApplicationUserManager = userManager
+
+  member this.AuthenticationManager with get() = this.HttpContext.GetOwinContext().Authentication
 
   member this.SignInManager
     with get () = 
@@ -47,39 +70,6 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     result.Errors
     |> Seq.map (fun error -> this.ModelState.AddModelError("", error))
     |> ignore
-
-
-//  type ChallengeResult(provider:string, redirectUri:string, userId:string) =
-//    inherit HttpUnauthorizedResult()
-//      //      public string LoginProvider { get; set; }
-//      //      public string RedirectUri { get; set; }
-//      //      public string UserId { get; set; }
-//
-////  internal class ChallengeResult : HttpUnauthorizedResult
-////  {
-////      public ChallengeResult(string provider, string redirectUri)
-////          : this(provider, redirectUri, null)
-////      {
-////      }
-////
-////      public ChallengeResult(string provider, string redirectUri, string userId)
-////      {
-////          LoginProvider = provider;
-////          RedirectUri = redirectUri;
-////          UserId = userId;
-////      }
-////
-////
-////      public override void ExecuteResult(ControllerContext context)
-////      {
-////          var properties = new AuthenticationProperties { RedirectUri = RedirectUri };
-////          if (UserId != null)
-////          {
-////              properties.Dictionary[XsrfKey] = UserId;
-////          }
-////          context.HttpContext.GetOwinContext().Authentication.Challenge(properties, LoginProvider);
-////      }
-////  }
 
   //
   // GET: /Account/Login
@@ -110,7 +100,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
         | SignInStatus.Success -> this.RedirectToLocal(returnUrl)
         | SignInStatus.LockedOut -> this.View("Lockout") :> ActionResult
         | SignInStatus.RequiresVerification -> 
-            this.RedirectToAction("SendCode", { ReturnUrl = returnUrl; RememberMe = model.RememberMe }) :> ActionResult
+            this.RedirectToAction("SendCode", { RouteValues.ReturnUrl = returnUrl; RememberMe = model.RememberMe }) :> ActionResult
         //| SignInStatus.Failure: this will be caught by the _ match
         | _ -> 
           this.ModelState.AddModelError("", "Invalid login attempt.")
@@ -216,8 +206,8 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
         } |> Async.StartAsTask
             
       let view = match result.Result.Succeeded with
-                | true -> "ConfirmEmail"
-                | false -> "Error"
+                  | true -> "ConfirmEmail"
+                  | false -> "Error"
 
       this.View(view)
 
@@ -325,10 +315,191 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
 
   //
   // POST: /Account/ExternalLogin
-//  [<HttpPost>]
-//  [<AllowAnonymous>]
-//  [<ValidateAntiForgeryToken>]
-//  member this.ExternalLogin(provider:string, returnUrl:string) =
-//    // Request a redirect to the external login provider
-//    this.ChallengeResult(provider, Url.Action("ExternalLoginCallback", "Account", { ReturnUrl = returnUrl }))
-//    
+  [<HttpPost>]
+  [<AllowAnonymous>]
+  [<ValidateAntiForgeryToken>]
+  member this.ExternalLogin(provider:string, returnUrl:string) =
+    // Request a redirect to the external login provider
+    ChallengeResult(this, provider, this.Url.Action("ExternalLoginCallback", "Account", { ReturnUrl.ReturnUrl = returnUrl }))
+   
+  //
+  // GET: /Account/SendCode
+  [<AllowAnonymous>]
+  member this.SendCode(returnUrl:string, rememberMe:bool) =
+    let userId = 
+      async {
+        let! result = this.SignInManager.GetVerifiedUserIdAsync()
+                      |> Async.AwaitTask
+        return result
+      } |> Async.StartAsTask
+
+    match userId with
+    | null -> this.View("Error")
+    | _ -> 
+      let userFactors = 
+        async {
+          let! result = this.UserManager.GetValidTwoFactorProvidersAsync(userId.Result)
+                        |> Async.AwaitTask
+          return result
+        } |> Async.StartAsTask
+      let factorOptions = 
+          userFactors.Result
+          |> Seq.map (fun purpose -> SelectListItem(Text = purpose, Value = purpose))
+          |> Seq.toArray :> ICollection<System.Web.Mvc.SelectListItem>                 
+      let viewModel = SendCodeViewModel()
+      viewModel.Providers <- factorOptions          
+      this.View(SendCodeViewModel(Providers = factorOptions, ReturnUrl = returnUrl, RememberMe = rememberMe))
+      
+  //
+  // POST: /Account/SendCode
+  [<HttpPost>]
+  [<AllowAnonymous>]
+  [<ValidateAntiForgeryToken>]
+  member this.SendCode(model:SendCodeViewModel) =
+      match this.ModelState.IsValid with
+      | false -> this.View() :> ActionResult
+      | true -> 
+        // Generate the token and send it
+        let sendTwoFactorCode = 
+          async {
+            let! result = this.SignInManager.SendTwoFactorCodeAsync(model.SelectedProvider)
+                          |> Async.AwaitTask
+            return result
+          } |> Async.StartAsTask
+        
+        match sendTwoFactorCode.Result with
+        | false -> this.View("Error") :> ActionResult
+        | true -> 
+            this.RedirectToAction("VerifyCode", { RedirectValues.Provider = model.SelectedProvider; ReturnUrl = model.ReturnUrl; RememberMe = model.RememberMe }) :> ActionResult
+            
+  //
+  // GET: /Account/ExternalLoginCallback
+  [<AllowAnonymous>]
+  member this.ExternalLoginCallback(returnUrl:string) =
+    let loginInfo = 
+      async {
+        let! result = this.AuthenticationManager.GetExternalLoginInfoAsync()
+                      |> Async.AwaitTask
+        return result
+      } |> Async.StartAsTask
+
+    match loginInfo.Result with
+    | null -> this.RedirectToAction("Login") :> ActionResult
+    | _ ->
+      // Sign in the user with this external login provider if the user already has a login
+      let externalSignIn = 
+        async {
+          let! result = this.SignInManager.ExternalSignInAsync(loginInfo.Result, isPersistent = false)
+                        |> Async.AwaitTask
+          return result
+        } |> Async.StartAsTask
+
+      match externalSignIn.Result with
+      | SignInStatus.Success -> this.RedirectToLocal(returnUrl)
+      | SignInStatus.LockedOut -> this.View("Lockout") :> ActionResult
+      | SignInStatus.RequiresVerification -> this.RedirectToAction("SendCode", { RouteValues.ReturnUrl = returnUrl; RememberMe = false }) :> ActionResult
+      //| SignInStatus.Failure: taken care of by the default match
+      | _ -> 
+        // If the user does not have an account, then prompt the user to create an account
+        this.ViewData?ReturnUrl <- returnUrl
+        this.ViewData?LoginProvider <- loginInfo.Result.Login.LoginProvider
+        this.View("ExternalLoginConfirmation", ExternalLoginConfirmationViewModel(Email = loginInfo.Result.Email)) :> ActionResult
+
+  //
+  // POST: /Account/ExternalLoginConfirmation
+  [<HttpPost>]
+  [<AllowAnonymous>]
+  [<ValidateAntiForgeryToken>]
+  member this.ExternalLoginConfirmation(model:ExternalLoginConfirmationViewModel, returnUrl:string) =
+    
+    // TODO: This function needs work and I will be seriously suprised if
+    // it even works the way it's currently coded. I got so confused on this
+    // function due to it's C# counterpart. This one has stumped me due
+    // to the various ways it returns
+    
+    match this.User.Identity.IsAuthenticated with
+    | true -> this.RedirectToAction("Index", "Manage") :> ActionResult
+    | false ->
+        match this.ModelState.IsValid with
+        | false -> 
+          this.ViewData?ReturnUrl <- returnUrl
+          this.View(model) :> ActionResult
+          // Get the information about the user from the external login provider
+        | true -> 
+            let info = 
+              async {
+                let! result = this.AuthenticationManager.GetExternalLoginInfoAsync()
+                              |> Async.AwaitTask
+                return result
+              } |> Async.StartAsTask            
+
+            match info.Result with
+            | null -> this.View("ExternalLoginFailure") :> ActionResult
+            | _ -> 
+              let user = ApplicationUser(UserName = model.Email, Email = model.Email)
+              let um = 
+                async {
+                  let! result = this.UserManager.CreateAsync(user)
+                                |> Async.AwaitTask
+                  return result
+                } |> Async.StartAsTask  
+
+              let redirectToLocal : string =
+                match um.Result.Succeeded with
+                | true ->
+                    let addLogin = 
+                      async {
+                        let! result = this.UserManager.AddLoginAsync(user.Id, info.Result.Login)
+                                      |> Async.AwaitTask
+                        return result
+                      } |> Async.StartAsTask
+                
+                    match addLogin.Result.Succeeded with
+                    | true ->
+                        let signIn = 
+                          async {
+                            let! result = this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowse = false)
+                                          |> Async.AwaitTask
+                            return result
+                          } |> Async.StartAsTask
+                        //this.RedirectToLocal(returnUrl)
+                        returnUrl
+                    | false -> String.Empty
+                | false -> String.Empty                    
+              
+              match redirectToLocal with
+              | "" ->
+                this.AddErrors(um.Result)
+                this.ViewData?ReturnUrl <- returnUrl
+                this.View(model) :> ActionResult
+              | _ -> this.RedirectToLocal(returnUrl)
+              
+  //
+  // POST: /Account/LogOff
+  [<HttpPost>]
+  [<ValidateAntiForgeryToken>]
+  member this.LogOff() =
+    this.AuthenticationManager.SignOut()
+    this.RedirectToAction("Index", "Home")
+
+  //
+  // GET: /Account/ExternalLoginFailure
+  [<AllowAnonymous>]
+  member this.ExternalLoginFailure() =
+    this.View()
+
+  override this.Dispose(disposing) =
+    if disposing then
+      match _userManager with
+      | null -> ()
+      | _ -> 
+        _userManager.Dispose()
+        _userManager <- null
+
+      match _signInManager with
+      | null -> ()
+      | _ ->
+          _signInManager.Dispose()
+          _signInManager <- null
+
+    base.Dispose(disposing)
