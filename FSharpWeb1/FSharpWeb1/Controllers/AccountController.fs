@@ -458,11 +458,10 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
                     | true ->
                         let signIn = 
                           async {
-                            let! result = this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowse = false)
-                                          |> Async.AwaitTask
+                            let! result = this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false)
+                                          |> Async.AwaitIAsyncResult
                             return result
                           } |> Async.StartAsTask
-                        //this.RedirectToLocal(returnUrl)
                         returnUrl
                     | false -> String.Empty
                 | false -> String.Empty                    
