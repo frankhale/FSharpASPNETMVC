@@ -24,6 +24,7 @@ and probably not idiomatic.
   
 ###TODO:
 - Finish controllers
+	-First pass through the AccountController is done but the code is not exactly where I want it yet
 - Copy over all the views and make sure they are wired up correctly
 
 ##License
