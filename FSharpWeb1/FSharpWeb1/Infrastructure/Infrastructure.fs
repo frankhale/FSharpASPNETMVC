@@ -22,11 +22,32 @@ module Helpers =
   let (?<-) (viewData:ViewDataDictionary) (name:string) (value:'T) =
     viewData.Add(name, box value)
 
+  let awaitPlainTask(t : Task) =
+        (async {
+        let! result = t |> Async.AwaitIAsyncResult |> Async.Ignore
+        return result
+      } |> Async.StartAsTask).Result
+
+  let await(t) =
+    (async {
+        let! result = t |> Async.AwaitTask
+        return result
+      } |> Async.StartAsTask).Result
+
 type EmailService() =
   interface IIdentityMessageService with
     member this.SendAsync (message:IdentityMessage) : Task =
       // Plug in your email service here to send an email.
       Task.FromResult(0) :> Task
+
+type ManageMessageId =
+  | AddPhoneSuccess
+  | ChangePasswordSuccess
+  | SetTwoFactorSuccess
+  | SetPasswordSuccess
+  | RemoveLoginSuccess
+  | RemovePhoneSuccess
+  | Error
 
 type ReturnUrl = { ReturnUrl : string }
 type RouteValues = 
@@ -36,6 +57,8 @@ type RedirectValues =
   { Provider:string
     ReturnUrl:string
     RememberMe:bool }
+type Message = { Message : ManageMessageId }
+type PhoneNumber = { PhoneNumber:string }
 
 type SmsService() =
   interface IIdentityMessageService with
