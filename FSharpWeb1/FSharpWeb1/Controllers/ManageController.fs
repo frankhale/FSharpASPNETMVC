@@ -56,11 +56,20 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
         | ManageMessageId.Error -> "An error has occurred."
         | ManageMessageId.AddPhoneSuccess -> "Your phone number was added."
         | ManageMessageId.RemovePhoneSuccess -> "Your phone number was removed."
-        | _ -> ""
-  
-    // TODO!  
-     
-    this.View()
+        | _ -> ""    
+    
+    let userId = this.User.Identity.GetUserId()
+    let model = new IndexViewModel()
+    model.HasPassword <- this.HasPassword()
+    
+    // TODO...
+
+    //PhoneNumber = await UserManager.GetPhoneNumberAsync(userId)
+    //TwoFactor = await UserManager.GetTwoFactorEnabledAsync(userId)
+    //Logins = await UserManager.GetLoginsAsync(userId)
+    //BrowserRemembered = await AuthenticationManager.TwoFactorBrowserRememberedAsync(userId)
+
+    this.View(model)
 
 
   member private this.AddErrors(result:IdentityResult) =
