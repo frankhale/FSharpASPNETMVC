@@ -130,6 +130,7 @@
     <Compile Include="Models\Models.fs" />
     <Compile Include="Controllers\HomeController.fs" />
     <Compile Include="Controllers\AccountController.fs" />
+	<Compile Include="Controllers\ManageController.fs" />
     <Compile Include="Controllers\ValuesController.fs" />
     <Content Include="Views\Web.config" />
     <Content Include="Views\Home\Index.cshtml" />
