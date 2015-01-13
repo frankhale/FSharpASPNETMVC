@@ -45,14 +45,13 @@ type EmailService() =
       Task.FromResult(0) :> Task
 
 type ManageMessageId =
-  | AddPhoneSuccess
-  | ChangePasswordSuccess
-  | SetTwoFactorSuccess
-  | SetPasswordSuccess
-  | RemoveLoginSuccess
-  | RemovePhoneSuccess
-  | Error
-  | Empty 
+  | AddPhoneSuccess = 1
+  | ChangePasswordSuccess = 2
+  | SetTwoFactorSuccess = 3
+  | SetPasswordSuccess = 4
+  | RemoveLoginSuccess = 5
+  | RemovePhoneSuccess = 6
+  | Error = 7
 
 type ReturnUrl = { ReturnUrl : string }
 type RouteValues = 

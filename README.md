@@ -11,8 +11,7 @@ like Javascript, CSS, etc.. and then ported the C# code to F#.
 
 ##Status
 
-The app runs, you can register and login but the Manage controller is currently
-broke.
+Things should be working but not everything is fully tested. 
 
 ##License
 

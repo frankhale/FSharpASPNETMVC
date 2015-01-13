@@ -40,16 +40,17 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
 
   //
   // GET: /Manage/Index
-  member this.Index(message:ManageMessageId) =
-    this.ViewData?StatusMessage <-
-      match message with
-        | ManageMessageId.ChangePasswordSuccess -> "Your password has been changed."
-        | ManageMessageId.SetPasswordSuccess -> "Your password has been set."
-        | ManageMessageId.SetTwoFactorSuccess -> "Your two-factor authentication provider has been set."
-        | ManageMessageId.Error -> "An error has occurred."
-        | ManageMessageId.AddPhoneSuccess -> "Your phone number was added."
-        | ManageMessageId.RemovePhoneSuccess -> "Your phone number was removed."
-        | ManageMessageId.Empty | _ -> ""    
+  member this.Index(message:Nullable<ManageMessageId>) =
+    if message.HasValue then
+      this.ViewData?StatusMessage <-
+        match message.Value with
+          | ManageMessageId.ChangePasswordSuccess -> "Your password has been changed."
+          | ManageMessageId.SetPasswordSuccess -> "Your password has been set."
+          | ManageMessageId.SetTwoFactorSuccess -> "Your two-factor authentication provider has been set."
+          | ManageMessageId.Error -> "An error has occurred."
+          | ManageMessageId.AddPhoneSuccess -> "Your phone number was added."
+          | ManageMessageId.RemovePhoneSuccess -> "Your phone number was removed."
+          | _ -> ""    
     
     let userId = this.User.Identity.GetUserId()
     let model = new IndexViewModel()
@@ -238,12 +239,13 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
 
   //
   // GET: /Manage/ManageLogins
-  member this.ManageLogins(message:ManageMessageId) =
-    this.ViewData?StatusMessage <- 
-      match message with
-      | ManageMessageId.RemoveLoginSuccess -> "The external login was removed."
-      | ManageMessageId.Error -> "An error has occurred."
-      | _ -> ""
+  member this.ManageLogins(message:Nullable<ManageMessageId>) =
+    if message.HasValue then
+      this.ViewData?StatusMessage <- 
+        match message.Value with
+        | ManageMessageId.RemoveLoginSuccess -> "The external login was removed."
+        | ManageMessageId.Error -> "An error has occurred."
+        | _ -> ""
     
     let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
     match user with
