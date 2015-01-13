@@ -8,7 +8,11 @@ open Microsoft.Owin.Security
 open Microsoft.AspNet.Identity
 open Microsoft.AspNet.Identity.EntityFramework
 open Microsoft.AspNet.Identity.Owin
+open System.Threading.Tasks
+open System.Web
 open System.Web.Mvc
+open Microsoft.AspNet.Identity.Owin
+open Microsoft.Owin.Security
 
 // Thanks to http://stackoverflow.com/a/5341186/170217 for this!
 module Collections = 
@@ -59,6 +63,26 @@ type RedirectValues =
     RememberMe:bool }
 type Message = { Message : ManageMessageId }
 type PhoneNumber = { PhoneNumber:string }
+
+type ChallengeResult(controller:Controller, provider:string, redirectUri:string, userId:string) = 
+  inherit HttpUnauthorizedResult()
+
+  member val private Controller = controller with get, set
+  member val LoginProvider = provider with get, set
+  member val RedirectUri = redirectUri with get, set
+  member val UserId = userId with get, set  
+
+  new(controller:Controller, provider:string, redirectUri:string) = 
+    ChallengeResult(controller, provider, redirectUri, null)
+
+  override this.ExecuteResult(context:ControllerContext) =
+    let properties = AuthenticationProperties(RedirectUri = this.RedirectUri)    
+
+    match this.UserId with
+    | null -> ()
+    | _ -> properties.Dictionary.["XsrfId"] <- this.UserId
+    
+    this.Controller.ControllerContext.HttpContext.GetOwinContext().Authentication.Challenge(properties, this.LoginProvider)
 
 type SmsService() =
   interface IIdentityMessageService with

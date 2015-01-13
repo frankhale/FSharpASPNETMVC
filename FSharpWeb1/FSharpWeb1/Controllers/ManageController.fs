@@ -214,75 +214,76 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
 
   //
   // POST: /Manage/SetPassword
-//  [HttpPost]
-//  [ValidateAntiForgeryToken]
-//  public async Task<ActionResult> SetPassword(SetPasswordViewModel model)
-//  {
-//      if (ModelState.IsValid)
-//      {
-//          var result = await UserManager.AddPasswordAsync(User.Identity.GetUserId(), model.NewPassword);
-//          if (result.Succeeded)
-//          {
-//              var user = await UserManager.FindByIdAsync(User.Identity.GetUserId());
-//              if (user != null)
-//              {
-//                  await SignInManager.SignInAsync(user, isPersistent: false, rememberBrowser: false);
-//              }
-//              return RedirectToAction("Index", new { Message = ManageMessageId.SetPasswordSuccess });
-//          }
-//          AddErrors(result);
-//      }
-//
-//      // If we got this far, something failed, redisplay form
-//      return View(model);
-//  }
+  [<HttpPost>]
+  [<ValidateAntiForgeryToken>]
+  member this.SetPassword(model:SetPasswordViewModel) =
+    match this.ModelState.IsValid with
+    | true ->
+        let result = await(this.UserManager.AddPasswordAsync(this.User.Identity.GetUserId(), model.NewPassword))
+        match result.Succeeded with
+        | true ->
+          let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+          if user <> null then
+            awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
 
-//  //
-//  // GET: /Manage/ManageLogins
-//  public async Task<ActionResult> ManageLogins(ManageMessageId? message)
-//  {
-//      ViewBag.StatusMessage =
-//          message == ManageMessageId.RemoveLoginSuccess ? "The external login was removed."
-//          : message == ManageMessageId.Error ? "An error has occurred."
-//          : "";
-//      var user = await UserManager.FindByIdAsync(User.Identity.GetUserId());
-//      if (user == null)
-//      {
-//          return View("Error");
-//      }
-//      var userLogins = await UserManager.GetLoginsAsync(User.Identity.GetUserId());
-//      var otherLogins = AuthenticationManager.GetExternalAuthenticationTypes().Where(auth => userLogins.All(ul => auth.AuthenticationType != ul.LoginProvider)).ToList();
-//      ViewBag.ShowRemoveButton = user.PasswordHash != null || userLogins.Count > 1;
-//      return View(new ManageLoginsViewModel
-//      {
-//          CurrentLogins = userLogins,
-//          OtherLogins = otherLogins
-//      });
-//  }
-//
-//  //
-//  // POST: /Manage/LinkLogin
-//  [HttpPost]
-//  [ValidateAntiForgeryToken]
-//  public ActionResult LinkLogin(string provider)
-//  {
-//      // Request a redirect to the external login provider to link a login for the current user
-//      return new AccountController.ChallengeResult(provider, Url.Action("LinkLoginCallback", "Manage"), User.Identity.GetUserId());
-//  }
-//
-//  //
-//  // GET: /Manage/LinkLoginCallback
-//  public async Task<ActionResult> LinkLoginCallback()
-//  {
-// let XsrfKey = "XsrfId"
-//      var loginInfo = await AuthenticationManager.GetExternalLoginInfoAsync(XsrfKey, User.Identity.GetUserId());
-//      if (loginInfo == null)
-//      {
-//          return RedirectToAction("ManageLogins", new { Message = ManageMessageId.Error });
-//      }
-//      var result = await UserManager.AddLoginAsync(User.Identity.GetUserId(), loginInfo.Login);
-//      return result.Succeeded ? RedirectToAction("ManageLogins") : RedirectToAction("ManageLogins", new { Message = ManageMessageId.Error });
-//  }
+          this.RedirectToAction("Index", { Message = ManageMessageId.SetPasswordSuccess }) :> ActionResult
+        | false -> 
+            // If we got this far, something failed, redisplay form 
+            this.AddErrors(result) |> ignore
+            this.View(model) :> ActionResult
+    // If we got this far, something failed, redisplay form
+    | false -> this.View(model) :> ActionResult
+
+  //
+  // GET: /Manage/ManageLogins
+  member this.ManageLogins(message:ManageMessageId) =
+    this.ViewData?StatusMessage <- 
+      match message with
+      | ManageMessageId.RemoveLoginSuccess -> "The external login was removed."
+      | ManageMessageId.Error -> "An error has occurred."
+      | _ -> ""
+    
+    let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+    match user with
+    | null -> this.View("Error")
+    | _ ->
+      let userLogins = await(this.UserManager.GetLoginsAsync(this.User.Identity.GetUserId()))
+      let otherLogins = 
+            (query {
+              for auth in this.AuthenticationManager.GetExternalAuthenticationTypes() do
+              where (userLogins.All(fun ul -> auth.AuthenticationType <> ul.LoginProvider))
+              select auth
+            }).ToList()
+
+      this.ViewData?ShowRemoveButton <- 
+        if user.PasswordHash <> null || userLogins.Count > 1 then
+          true
+        else
+          false
+
+      this.View(ManageLoginsViewModel(CurrentLogins = userLogins, OtherLogins = otherLogins))
+
+  //
+  // POST: /Manage/LinkLogin
+  [<HttpPost>]
+  [<ValidateAntiForgeryToken>]
+  member this.LinkLogin(provider:string) =
+    // Request a redirect to the external login provider to link a login for the current user
+    ChallengeResult(this, provider, this.Url.Action("LinkLoginCallback", "Manage"), this.User.Identity.GetUserId())
+
+  //
+  // GET: /Manage/LinkLoginCallback
+  member this.LinkLoginCallback() =
+    let XsrfKey = "XsrfId"
+    let loginInfo = await(this.AuthenticationManager.GetExternalLoginInfoAsync(XsrfKey, this.User.Identity.GetUserId()))
+    
+    match loginInfo with
+    | null -> this.RedirectToAction("ManageLogins", { Message = ManageMessageId.Error })
+    | _ ->
+      let result = await(this.UserManager.AddLoginAsync(this.User.Identity.GetUserId(), loginInfo.Login))
+      match result.Succeeded with
+      | true -> this.RedirectToAction("ManageLogins")
+      | false -> this.RedirectToAction("ManageLogins", { Message = ManageMessageId.Error })
 
   member private this.HasPassword() =
     let user = this.UserManager.FindById(this.User.Identity.GetUserId())
@@ -316,4 +317,4 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
           _signInManager.Dispose()
           _signInManager <- null
 
-    base.Dispose(disposing)      
+    base.Dispose(disposing)

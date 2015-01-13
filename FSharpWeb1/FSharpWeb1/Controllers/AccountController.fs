@@ -16,26 +16,6 @@ open FSharpWeb1.Infrastructure
 open FSharpWeb1.Infrastructure.Helpers
 open FSharpWeb1.Models
 
-type ChallengeResult(controller:Controller, provider:string, redirectUri:string, userId:string) = 
-  inherit HttpUnauthorizedResult()
-
-  member val private Controller = controller with get, set
-  member val LoginProvider = provider with get, set
-  member val RedirectUri = redirectUri with get, set
-  member val UserId = userId with get, set  
-
-  new(controller:Controller, provider:string, redirectUri:string) = 
-    ChallengeResult(controller, provider, redirectUri, null)
-
-  override this.ExecuteResult(context:ControllerContext) =
-    let properties = AuthenticationProperties(RedirectUri = this.RedirectUri)    
-
-    match this.UserId with
-    | null -> ()
-    | _ -> properties.Dictionary.["XsrfId"] <- this.UserId
-    
-    this.Controller.ControllerContext.HttpContext.GetOwinContext().Authentication.Challenge(properties, this.LoginProvider)
-
 [<Authorize>]
 type AccountController(userManager:ApplicationUserManager, signInManager:ApplicationSignInManager) =
   inherit Controller()
