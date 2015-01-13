@@ -128,7 +128,7 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
   //
   // GET: /Manage/VerifyPhoneNumber
   member this.VerifyPhoneNumber(phoneNumber:string) =
-      let code = await(this.UserManager.GenerateChangePhoneNumberTokenAsync(this.User.Identity.GetUserId(), phoneNumber))
+      await(this.UserManager.GenerateChangePhoneNumberTokenAsync(this.User.Identity.GetUserId(), phoneNumber)) |> ignore
       // Send an SMS through the SMS provider to verify the phone number
       match String.IsNullOrEmpty(phoneNumber) with
       | true -> this.View("Error")
@@ -140,9 +140,6 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
   [<HttpPost>]
   [<ValidateAntiForgeryToken>]
   member this.VerifyPhoneNumber(model:VerifyPhoneNumberViewModel) =
-    
-    //TODO: This needs work!
-
     match this.ModelState.IsValid with
     | false -> this.View(model) :> ActionResult
     | true ->
@@ -257,10 +254,7 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
         }).ToList()
 
       this.ViewData?ShowRemoveButton <- 
-        if user.PasswordHash <> null || userLogins.Count > 1 then
-          true
-        else
-          false
+        if user.PasswordHash <> null || userLogins.Count > 1 then true else false
 
       this.View({ ManageLoginsViewModel.CurrentLogins = userLogins; OtherLogins = otherLogins })
 

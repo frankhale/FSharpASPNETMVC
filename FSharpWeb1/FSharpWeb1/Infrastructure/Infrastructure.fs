@@ -167,11 +167,7 @@ type ApplicationSignInManager(userManager:ApplicationUserManager, authentication
   inherit SignInManager<ApplicationUser, string>(userManager, authenticationManager)
   
   override this.CreateUserIdentityAsync(user:ApplicationUser) =
-    let _user = user.GenerateUserIdentityAsync(this.UserManager :?> ApplicationUserManager)
-    
-    match _user with
-    //| null -> _user
-    | _ -> _user
+    user.GenerateUserIdentityAsync(this.UserManager :?> ApplicationUserManager)
     
   static member Create(options:IdentityFactoryOptions<ApplicationSignInManager>, context:IOwinContext) =
     new ApplicationSignInManager(context.GetUserManager<ApplicationUserManager>(), context.Authentication)

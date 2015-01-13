@@ -124,22 +124,27 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   [<AllowAnonymous>]
   [<ValidateAntiForgeryToken>]
   member this.Register(model:RegisterViewModel) =
-    let user = ApplicationUser(UserName = model.Email, Email = model.Email)
-    let um = await(this.UserManager.CreateAsync(user, model.Password))
-    this.AddErrors(um)
-
-    // For more information on how to enable account confirmation and password reset please visit http://go.microsoft.com/fwlink/?LinkID=320771
-    // Send an email with this link
-    // string code = await UserManager.GenerateEmailConfirmationTokenAsync(user.Id);
-    // var callbackUrl = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, code = code }, protocol: Request.Url.Scheme);
-    // await UserManager.SendEmailAsync(user.Id, "Confirm your account", "Please confirm your account by clicking <a href=\"" + callbackUrl + "\">here</a>");
-
-    if this.ModelState.IsValid && um.Succeeded then
-      awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))        
-      this.RedirectToAction("Index", "Home") :> ActionResult
-    else  
-      // If we got this far, something failed, redisplay form
-      this.View(model) :> ActionResult
+    match this.ModelState.IsValid  with
+    | true -> 
+      let user = ApplicationUser(UserName = model.Email, Email = model.Email)
+      let um = await(this.UserManager.CreateAsync(user, model.Password))
+      
+      match um.Succeeded with 
+      | true -> 
+          awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))        
+          // For more information on how to enable account confirmation and password reset please visit http://go.microsoft.com/fwlink/?LinkID=320771
+          // Send an email with this link
+          // string code = await UserManager.GenerateEmailConfirmationTokenAsync(user.Id);
+          // var callbackUrl = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, code = code }, protocol: Request.Url.Scheme);
+          // await UserManager.SendEmailAsync(user.Id, "Confirm your account", "Please confirm your account by clicking <a href=\"" + callbackUrl + "\">here</a>");
+          this.RedirectToAction("Index", "Home") :> ActionResult
+      | false -> 
+          this.AddErrors(um)
+          // If we got this far, something failed, redisplay form
+          this.View(model) :> ActionResult
+    | false ->
+        // If we got this far, something failed, redisplay form
+        this.View(model) :> ActionResult
 
   //
   // GET: /Account/ConfirmEmail
@@ -167,20 +172,17 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   [<AllowAnonymous>]
   [<ValidateAntiForgeryToken>]
   member this.ForgotPassword(model:ForgotPasswordViewModel) =
-    
-    //TODO: THIS NEEDS WORK!
-
     match this.ModelState.IsValid with
     | true ->
         let user = await(this.UserManager.FindByNameAsync(model.Email))
         let isEmailConfirmed = await(this.UserManager.IsEmailConfirmedAsync(user.Id))
 
         match user, isEmailConfirmed with
-        | null, false -> this.View("ForgotPasswordConfirmation") :> ActionResult
+        | null, false -> this.View("ForgotPasswordConfirmation")
         // If we got this far, something failed, redisplay form
-        | _ -> this.View(model) :> ActionResult        
+        | _ -> this.View(model) 
     // If we got this far, something failed, redisplay form
-    | false -> this.View(model) :> ActionResult
+    | false -> this.View(model) 
 
     // For more information on how to enable account confirmation and password reset please visit http://go.microsoft.com/fwlink/?LinkID=320771
     // Send an email with this link
@@ -209,21 +211,16 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   [<AllowAnonymous>]
   [<ValidateAntiForgeryToken>]
   member this.ResetPassword(model:ResetPasswordViewModel) =
-    
-    //TODO: THIS NEEDS WORK!
-
     match this.ModelState.IsValid with
     | false -> this.View(model) :> ActionResult
     | true ->
       let user = await(this.UserManager.FindByNameAsync(model.Email))
-
       match user with
       // Don't reveal that the user does not exist
       | null -> this.RedirectToAction("ResetPasswordConfirmation", "Account") :> ActionResult
       | _ ->
         let result = await(this.UserManager.ResetPasswordAsync(user.Id, model.Code, model.Password))
         this.AddErrors(result)
-
         match result.Succeeded with
         | true -> this.RedirectToAction("ResetPasswordConfirmation", "Account") :> ActionResult
         | false -> this.View() :> ActionResult
@@ -327,12 +324,10 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
             | _ -> 
               let user = ApplicationUser(UserName = model.Email, Email = model.Email)
               let um = await(this.UserManager.CreateAsync(user))
-
               let redirectToLocal : string =
                 match um.Succeeded with
                 | true ->
-                    let addLogin = await(this.UserManager.AddLoginAsync(user.Id, info.Login))
-                
+                    let addLogin = await(this.UserManager.AddLoginAsync(user.Id, info.Login))                
                     match addLogin.Succeeded with
                     | true -> 
                       awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
