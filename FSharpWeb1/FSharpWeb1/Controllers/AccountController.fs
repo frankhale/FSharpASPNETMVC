@@ -39,7 +39,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
       | _ -> _userManager
     and set (value) = _userManager <- value
 
-  new() = new AccountController()
+  new() = new AccountController(null, null)
 
   member private this.RedirectToLocal(returnUrl:string) = 
     match this.Url.IsLocalUrl(returnUrl) with

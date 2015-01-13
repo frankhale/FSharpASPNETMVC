@@ -36,6 +36,8 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
       | _ -> _userManager
     and set (value) = _userManager <- value
 
+  new() = new ManageController(null, null)
+
   //
   // GET: /Manage/Index
   member this.Index(message:ManageMessageId) =

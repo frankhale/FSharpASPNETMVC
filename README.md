@@ -12,7 +12,8 @@ like Javascript, CSS, etc.. and then ported the C# code to F#.
 ##Status
 
 The initial pass through all of the code has been done and everything is ported
-but everything is not working yet.   
+but everything is has not been tested yet (specifically registering an account
+and logging in).  
 
 ###Done:
 - Web.config
