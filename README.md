@@ -11,28 +11,9 @@ like Javascript, CSS, etc.. and then ported the C# code to F#.
 
 ##Status
 
-The initial pass through all of the code has been done and everything is ported
-but everything is has not been tested yet (specifically registering an account
-and logging in).  
+The app runs, you can register and login but the Manage controller is currently
+broke.
 
-I'm going to say up front that I think all the async/await C# interop code is
-currently broke because I don't fully understand how to deal with C# 
-async/await in F#. Currently registering a user works but logging in does not
-and there are a lot of async/await calls with respect to the AccountController.
-
-If anyone can help me understand this I'd really appreciate it! Pull requests
-are very welcome!!!
-
-###Done:
-- Web.config
-- Scripts
-- Contents
-- Startup.cs
-- Stuff in App_Start
-- Models
-- Controllers
-- Views
-  
 ##License
 
 GNU GPL v2

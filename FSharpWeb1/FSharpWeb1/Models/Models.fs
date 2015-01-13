@@ -6,6 +6,9 @@ open System.ComponentModel.DataAnnotations
 open Microsoft.AspNet.Identity
 open Microsoft.Owin.Security
 
+// Need to look into using [<CLIMutable>] to simplify the types below so I
+// can use records instead
+
 type ExternalLoginConfirmationViewModel() =
   [<Required>]
   [<Display(Name = "Email")>]

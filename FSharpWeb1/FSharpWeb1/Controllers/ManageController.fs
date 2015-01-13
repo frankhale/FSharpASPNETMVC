@@ -49,7 +49,7 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
         | ManageMessageId.Error -> "An error has occurred."
         | ManageMessageId.AddPhoneSuccess -> "Your phone number was added."
         | ManageMessageId.RemovePhoneSuccess -> "Your phone number was removed."
-        | _ -> ""    
+        | ManageMessageId.Empty | _ -> ""    
     
     let userId = this.User.Identity.GetUserId()
     let model = new IndexViewModel()

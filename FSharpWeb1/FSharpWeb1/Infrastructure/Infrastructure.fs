@@ -52,6 +52,7 @@ type ManageMessageId =
   | RemoveLoginSuccess
   | RemovePhoneSuccess
   | Error
+  | Empty 
 
 type ReturnUrl = { ReturnUrl : string }
 type RouteValues = 
@@ -94,18 +95,19 @@ type SmsService() =
 type ApplicationUser() =
   inherit IdentityUser()
 
-  member this.GenerateUserIdentityAsync (manager:UserManager<ApplicationUser>) : Task<ClaimsIdentity> = 
-    let userIdentity = 
+  member this.GenerateUserIdentityAsync (manager:UserManager<ApplicationUser>) = 
+    // Note the authenticationType must match the one defined in CookieAuthenticationOptions.AuthenticationType
+    let userIdentity =  
       async {
-        let! um = manager.CreateIdentityAsync (this, DefaultAuthenticationTypes.ApplicationCookie)
-                  |> Async.AwaitTask 
-        return um
+        let! result = manager.CreateIdentityAsync(this, DefaultAuthenticationTypes.ApplicationCookie)
+                      |> Async.AwaitTask
+        return result
       } |> Async.StartAsTask
-
+    // Add custom user claims here
     userIdentity
-    
+
 type ApplicationDbContext() =
-  inherit IdentityDbContext<ApplicationUser>("DefaultConnection", false)
+  inherit IdentityDbContext<ApplicationUser>("DefaultConnection", throwIfV1Schema = false)
   
   static member Create() =
     new ApplicationDbContext()
@@ -166,16 +168,11 @@ type ApplicationSignInManager(userManager:ApplicationUserManager, authentication
   inherit SignInManager<ApplicationUser, string>(userManager, authenticationManager)
   
   override this.CreateUserIdentityAsync(user:ApplicationUser) =
-    let um = this.UserManager :?> ApplicationUserManager
+    let _user = user.GenerateUserIdentityAsync(this.UserManager :?> ApplicationUserManager)
     
-    let result =
-      async {
-        let! genUID = user.GenerateUserIdentityAsync(um)
-                      |> Async.AwaitTask
-        return genUID
-      } |> Async.StartAsTask
-        
-    result
+    match _user with
+    //| null -> _user
+    | _ -> _user
     
-  static member Create (options:IdentityFactoryOptions<ApplicationSignInManager>, context:IOwinContext) =
+  static member Create(options:IdentityFactoryOptions<ApplicationSignInManager>, context:IOwinContext) =
     new ApplicationSignInManager(context.GetUserManager<ApplicationUserManager>(), context.Authentication)

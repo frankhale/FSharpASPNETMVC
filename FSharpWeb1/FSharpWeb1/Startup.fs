@@ -29,14 +29,14 @@ type Startup() =
     let cookieAuthOptions = CookieAuthenticationOptions()
     cookieAuthOptions.AuthenticationType <- DefaultAuthenticationTypes.ApplicationCookie
     cookieAuthOptions.LoginPath <- PathString("/Account/Login")
-    
+
     let cookieAuthOptionsProvider = CookieAuthenticationProvider()
     // Enables the application to validate the security stamp when the user logs in.
     // This is a security feature which is used when you change a password or add an external login to your account.  
     cookieAuthOptionsProvider.OnValidateIdentity <- SecurityStampValidator.OnValidateIdentity<ApplicationUserManager, ApplicationUser>(validateInterval=TimeSpan.FromMinutes(30.0), regenerateIdentity = fun manager user -> user.GenerateUserIdentityAsync(manager))
-
     cookieAuthOptions.Provider <- cookieAuthOptionsProvider
 
+    app.UseCookieAuthentication(cookieAuthOptions) |> ignore
     app.UseExternalSignInCookie(DefaultAuthenticationTypes.ExternalCookie)
 
     // Enables the application to temporarily store user information when they are verifying the second factor in the two-factor authentication process.
@@ -60,9 +60,7 @@ type Startup() =
     //   appId = "",
     //   appSecret = "")
 
-    //let googleOAuth2AuthenticationOptions = GoogleOAuth2AuthenticationOptions()
-    //googleOAuth2AuthenticationOptions.ClientId <- ""
-    //googleOAuth2AuthenticationOptions.ClientSecret <- ""
+    //app.UseGoogleAuthentication(GoogleOAuth2AuthenticationOptions(ClientId = "", ClientSecret = ""))
 
 [<assembly: OwinStartupAttribute(typeof<Startup>)>]
 do()

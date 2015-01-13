@@ -17,20 +17,20 @@ open Microsoft.AspNet.Identity.Owin
 
 type BundleConfig() =
     static member RegisterBundles (bundles:BundleCollection) =
-        bundles.Add(ScriptBundle("~/bundles/jquery").Include([|"~/Scripts/jquery-{version}.js"|]))
-        bundles.Add(ScriptBundle("~/bundles/jqueryval").Include([|"~/Scripts/jquery.validate*"|]));
+      bundles.Add(ScriptBundle("~/bundles/jquery").Include([|"~/Scripts/jquery-{version}.js"|]))
+      bundles.Add(ScriptBundle("~/bundles/jqueryval").Include([|"~/Scripts/jquery.validate*"|]));
 
-        // Use the development version of Modernizr to develop with and learn from. Then, when you're
-        // ready for production, use the build tool at http://modernizr.com to pick only the tests you need.
-        bundles.Add(ScriptBundle("~/bundles/modernizr").Include([|"~/Scripts/modernizr-*"|]))
+      // Use the development version of Modernizr to develop with and learn from. Then, when you're
+      // ready for production, use the build tool at http://modernizr.com to pick only the tests you need.
+      bundles.Add(ScriptBundle("~/bundles/modernizr").Include([|"~/Scripts/modernizr-*"|]))
 
-        bundles.Add(ScriptBundle("~/bundles/bootstrap").Include(
-                        "~/Scripts/bootstrap.js",
-                        "~/Scripts/respond.js"))
+      bundles.Add(ScriptBundle("~/bundles/bootstrap").Include(
+                      "~/Scripts/bootstrap.js",
+                      "~/Scripts/respond.js"))
 
-        bundles.Add(StyleBundle("~/Content/css").Include(
-                        "~/Content/bootstrap.css",
-                        "~/Content/site.css"))
+      bundles.Add(StyleBundle("~/Content/css").Include(
+                      "~/Content/bootstrap.css",
+                      "~/Content/site.css"))
 
 /// Route for ASP.NET MVC applications
 type Route = { 

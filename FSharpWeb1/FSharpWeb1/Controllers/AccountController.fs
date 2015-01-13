@@ -118,8 +118,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
         match twoFactorSignIn.Result with
         | SignInStatus.Success -> this.RedirectToLocal(model.ReturnUrl)
         | SignInStatus.LockedOut -> this.View("Lockout") :> ActionResult
-        //| SignInStatus.Failure ->  this will be caught by the _ match
-        | _ -> 
+        | SignInStatus.Failure | _ -> 
           this.ModelState.AddModelError("", "Invalid code.")
           this.View(model) :> ActionResult
 
@@ -136,14 +135,8 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   [<ValidateAntiForgeryToken>]
   member this.Register(model:RegisterViewModel) =
     let user = ApplicationUser(UserName = model.Email, Email = model.Email)
-    let um = 
-      async {
-        let! result = this.UserManager.CreateAsync(user, model.Password)
-                      |> Async.AwaitTask
-        return result
-      } |> Async.StartAsTask
-    
-    this.AddErrors(um.Result)
+    let um = await(this.UserManager.CreateAsync(user, model.Password))
+    this.AddErrors(um)
 
     // For more information on how to enable account confirmation and password reset please visit http://go.microsoft.com/fwlink/?LinkID=320771
     // Send an email with this link
@@ -151,14 +144,8 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     // var callbackUrl = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, code = code }, protocol: Request.Url.Scheme);
     // await UserManager.SendEmailAsync(user.Id, "Confirm your account", "Please confirm your account by clicking <a href=\"" + callbackUrl + "\">here</a>");
 
-    if this.ModelState.IsValid && um.Result.Succeeded then
-      let signInManager = 
-        async {
-          let! result = this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false)
-                        |> Async.AwaitIAsyncResult |> Async.Ignore                        
-          return result
-        } |> Async.StartAsTask
-        
+    if this.ModelState.IsValid && um.Succeeded then
+      awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))        
       this.RedirectToAction("Index", "Home") :> ActionResult
     else  
       // If we got this far, something failed, redisplay form
