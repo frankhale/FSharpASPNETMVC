@@ -53,14 +53,11 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
           | _ -> ""    
     
     let userId = this.User.Identity.GetUserId()
-    let model = new IndexViewModel()
-    model.HasPassword <- this.HasPassword()
-    model.PhoneNumber <- await(this.UserManager.GetPhoneNumberAsync(userId))
-    model.TwoFactor <- await(this.UserManager.GetTwoFactorEnabledAsync(userId))
-    model.Logins <- await(this.UserManager.GetLoginsAsync(userId))
-    model.BrowserRemembered <- await(this.AuthenticationManager.TwoFactorBrowserRememberedAsync(userId))
-
-    this.View(model)
+    this.View({ IndexViewModel.HasPassword = this.HasPassword();
+                PhoneNumber = await(this.UserManager.GetPhoneNumberAsync(userId));
+                TwoFactor = await(this.UserManager.GetTwoFactorEnabledAsync(userId));
+                Logins = await(this.UserManager.GetLoginsAsync(userId));
+                BrowserRemembered = await(this.AuthenticationManager.TwoFactorBrowserRememberedAsync(userId))})
 
   //
   // POST: /Manage/RemoveLogin
@@ -136,7 +133,7 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
       match String.IsNullOrEmpty(phoneNumber) with
       | true -> this.View("Error")
       | false ->
-          this.View(VerifyPhoneNumberViewModel(PhoneNumber = phoneNumber))
+          this.View({ VerifyPhoneNumberViewModel.PhoneNumber = phoneNumber })
 
   //
   // POST: /Manage/VerifyPhoneNumber
@@ -253,11 +250,11 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
     | _ ->
       let userLogins = await(this.UserManager.GetLoginsAsync(this.User.Identity.GetUserId()))
       let otherLogins = 
-            (query {
-              for auth in this.AuthenticationManager.GetExternalAuthenticationTypes() do
-              where (userLogins.All(fun ul -> auth.AuthenticationType <> ul.LoginProvider))
-              select auth
-            }).ToList()
+        (query {
+          for auth in this.AuthenticationManager.GetExternalAuthenticationTypes() do
+          where (userLogins.All(fun ul -> auth.AuthenticationType <> ul.LoginProvider))
+          select auth
+        }).ToList()
 
       this.ViewData?ShowRemoveButton <- 
         if user.PasswordHash <> null || userLogins.Count > 1 then
@@ -265,7 +262,7 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
         else
           false
 
-      this.View(ManageLoginsViewModel(CurrentLogins = userLogins, OtherLogins = otherLogins))
+      this.View({ ManageLoginsViewModel.CurrentLogins = userLogins; OtherLogins = otherLogins })
 
   //
   // POST: /Manage/LinkLogin

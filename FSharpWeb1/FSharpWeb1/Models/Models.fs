@@ -6,157 +6,161 @@ open System.ComponentModel.DataAnnotations
 open Microsoft.AspNet.Identity
 open Microsoft.Owin.Security
 
-// Need to look into using [<CLIMutable>] to simplify the types below so I
-// can use records instead
+[<CLIMutable>]
+type ExternalLoginConfirmationViewModel =
+  { [<Required>]
+    [<Display(Name = "Email")>]
+    Email : string }
 
-type ExternalLoginConfirmationViewModel() =
-  [<Required>]
-  [<Display(Name = "Email")>]
-  member val Email = String.Empty with get, set
+[<CLIMutable>]
+type ExternalLoginListViewModel =
+  { ReturnUrl : string }
 
-type ExternalLoginListViewModel() =
-  member val ReturnUrl = String.Empty with get, set
+[<CLIMutable>]
+type SendCodeViewModel =
+  { [<DefaultValue>]
+    SelectedProvider : string
+    Providers : ICollection<System.Web.Mvc.SelectListItem>
+    ReturnUrl : string
+    RememberMe : bool }
 
-type SendCodeViewModel() =
-  member val SelectedProvider = String.Empty with get, set
-  member val Providers = Unchecked.defaultof<ICollection<System.Web.Mvc.SelectListItem>> with get, set
-  member val ReturnUrl = String.Empty with get, set
-  member val RememberMe = Unchecked.defaultof<bool> with get, set
+[<CLIMutable>]
+type VerifyCodeViewModel =
+  { [<Required>]
+    Provider : string
+    [<Required>]
+    [<DefaultValue>]
+    [<Display(Name = "Code")>]
+    Code : string
+    ReturnUrl : string
+    [<DefaultValue>]
+    [<Display(Name = "Remember this browser?")>]
+    RememberBrowser : bool
+    RememberMe : bool }
 
-type VerifyCodeViewModel() =
-  [<Required>]
-  member val Provider = String.Empty with get, set
+[<CLIMutable>]
+type ForgotViewModel =
+  { [<Required>]
+    [<Display(Name = "Email")>]
+    Email : string }
 
-  [<Required>]
-  [<Display(Name = "Code")>]
-  member val Code = String.Empty with get, set
+[<CLIMutable>]
+type LoginViewModel =
+  { [<Required>]
+    [<Display(Name = "Email")>]
+    [<EmailAddress>]
+    Email : string
+    [<Required>]
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "Password")>]
+    Password : string
+    [<Display(Name = "Remember me?")>]
+    RememberMe : bool }
 
-  member val ReturnUrl = String.Empty with get, set
-    
-  [<Display(Name = "Remember this browser?")>]
-  member val RememberBrowser = Unchecked.defaultof<bool> with get, set
-  member val RememberMe = Unchecked.defaultof<bool> with get, set
+[<CLIMutable>]
+type RegisterViewModel =
+  { [<Required>]
+    [<EmailAddress>]
+    [<Display(Name = "Email")>]
+    Email : string
+    [<Required>]
+    [<StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 6)>]
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "Password")>]
+    Password : string
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "Confirm password")>]
+    [<Compare("Password", ErrorMessage = "The password and confirmation password do not match.")>]
+    ConfirmPassword : string }
 
-type ForgotViewModel() =
-  [<Required>]
-  [<Display(Name = "Email")>]
-  member val Email = String.Empty with get, set
+[<CLIMutable>]
+type ResetPasswordViewModel =
+  { [<Required>]
+    [<EmailAddress>]
+    [<Display(Name = "Email")>]
+    Email : string
+    [<Required>]
+    [<StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 6)>]
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "Password")>]
+    Password : string
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "Confirm password")>]
+    [<Compare("Password", ErrorMessage = "The password and confirmation password do not match.")>]
+    ConfirmPassword : string
+    Code : string }
 
-type LoginViewModel() =
-  [<Required>]
-  [<Display(Name = "Email")>]
-  [<EmailAddress>]
-  member val Email = String.Empty with get, set
- 
-  [<Required>]
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "Password")>]
-  member val Password = String.Empty with get, set
+[<CLIMutable>]
+type ForgotPasswordViewModel =
+  { [<Required>]
+    [<EmailAddress>]
+    [<Display(Name = "Email")>]
+    Email : string }
 
-  [<Display(Name = "Remember me?")>]
-  member val RememberMe = Unchecked.defaultof<bool> with get, set
+[<CLIMutable>]
+type IndexViewModel =
+  { HasPassword : bool
+    Logins : IList<UserLoginInfo>
+    PhoneNumber : string
+    TwoFactor : bool
+    BrowserRemembered : bool }
 
-type RegisterViewModel() =
-  [<Required>]
-  [<EmailAddress>]
-  [<Display(Name = "Email")>]
-  member val Email = String.Empty with get, set
+[<CLIMutable>]
+type ManageLoginsViewModel =
+  { CurrentLogins : IList<UserLoginInfo>
+    OtherLogins : IList<AuthenticationDescription> }
 
-  [<Required>]
-  [<StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 6)>]
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "Password")>]
-  member val Password = String.Empty with get, set
+[<CLIMutable>]
+type FactorViewModel =
+  { Purpose : string }
 
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "Confirm password")>]
-  [<Compare("Password", ErrorMessage = "The password and confirmation password do not match.")>]
-  member val ConfirmPassword = String.Empty with get, set
+[<CLIMutable>]
+type SetPasswordViewModel =
+  { [<Required>]
+    [<StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 6)>]
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "New password")>]
+    NewPassword : string
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "Confirm new password")>]
+    [<Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")>]
+    ConfirmPassword : string }
 
-type ResetPasswordViewModel() =
-  [<Required>]
-  [<EmailAddress>]
-  [<Display(Name = "Email")>]
-  member val Email = String.Empty with get, set
+[<CLIMutable>]
+type ChangePasswordViewModel =
+  { [<Required>]
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "Current password")>]
+    OldPassword : string
+    [<Required>]
+    [<StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 6)>]
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "New password")>]
+    NewPassword : string
+    [<DataType(DataType.Password)>]
+    [<Display(Name = "Confirm new password")>]
+    [<Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")>]
+    ConfirmPassword : string }
 
-  [<Required>]
-  [<StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 6)>]
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "Password")>]
-  member val Password = String.Empty with get, set
+[<CLIMutable>]
+type AddPhoneNumberViewModel =
+  { [<Required>]
+    [<Phone>]
+    [<Display(Name = "Phone Number")>]
+    Number : string }
 
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "Confirm password")>]
-  [<Compare("Password", ErrorMessage = "The password and confirmation password do not match.")>]
-  member val ConfirmPassword = String.Empty with get, set
-  
-  member val Code = String.Empty with get, set
-
-type ForgotPasswordViewModel() =
-  [<Required>]
-  [<EmailAddress>]
-  [<Display(Name = "Email")>]
-  member val Email = String.Empty with get, set
-
-type IndexViewModel() =
-  member val HasPassword = Unchecked.defaultof<bool> with get, set
-  member val Logins = Unchecked.defaultof<IList<UserLoginInfo>> with get, set
-  member val PhoneNumber = String.Empty with get, set
-  member val TwoFactor = Unchecked.defaultof<bool> with get, set
-  member val BrowserRemembered = Unchecked.defaultof<bool> with get, set
-
-type ManageLoginsViewModel() =
-  member val CurrentLogins = Unchecked.defaultof<IList<UserLoginInfo>> with get, set
-  member val OtherLogins = Unchecked.defaultof<IList<AuthenticationDescription>> with get, set
-
-type FactorViewModel() =
-  member val Purpose = String.Empty with get, set
-
-type SetPasswordViewModel() =
-  [<Required>]
-  [<StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 6)>]
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "New password")>]
-  member val NewPassword = String.Empty with get, set
-
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "Confirm new password")>]
-  [<Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")>]
-  member val ConfirmPassword = String.Empty with get, set
-
-type ChangePasswordViewModel() =
-  [<Required>]
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "Current password")>]
-  member val OldPassword = String.Empty with get, set
-
-  [<Required>]
-  [<StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 6)>]
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "New password")>]
-  member val NewPassword = String.Empty with get, set
-
-  [<DataType(DataType.Password)>]
-  [<Display(Name = "Confirm new password")>]
-  [<Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")>]
-  member val ConfirmPassword = String.Empty with get, set
-
-type AddPhoneNumberViewModel() =
+[<CLIMutable>]
+type VerifyPhoneNumberViewModel =
+  { [<DefaultValue>]
+    [<Required>]
+    [<Display(Name = "Code")>]
+    Code : string
     [<Required>]
     [<Phone>]
     [<Display(Name = "Phone Number")>]
-    member val Number = String.Empty with get, set
+    PhoneNumber : string }
 
-type VerifyPhoneNumberViewModel() =
-  [<Required>]
-  [<Display(Name = "Code")>]
-  member val Code = String.Empty with get, set
-
-  [<Required>]
-  [<Phone>]
-  [<Display(Name = "Phone Number")>]
-  member val PhoneNumber = String.Empty with get, set
-
-type ConfigureTwoFactorViewModel() =
-  member val SelectedProvider = String.Empty with get, set
-  member val Providers = Unchecked.defaultof<ICollection<System.Web.Mvc.SelectListItem>> with get, set
+[<CLIMutable>]
+type ConfigureTwoFactorViewModel =
+  { SelectedProvider : string
+    Providers : ICollection<System.Web.Mvc.SelectListItem> }
