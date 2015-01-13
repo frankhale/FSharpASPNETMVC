@@ -28,6 +28,10 @@
     <PlatformTarget>
     </PlatformTarget>
     <ConsolePause>false</ConsolePause>
+	<AllowedReferenceRelatedFileExtensions>
+	<!-- Prevent default XML from debug release  -->
+	  *.xml
+	</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -40,6 +44,10 @@
     <ConsolePause>false</ConsolePause>
     <PlatformTarget>
     </PlatformTarget>
+	<AllowedReferenceRelatedFileExtensions>
+	<!-- Prevent default XML from debug release  -->
+	  *.xml
+	</AllowedReferenceRelatedFileExtensions>	
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>

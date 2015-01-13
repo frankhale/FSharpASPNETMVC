@@ -69,20 +69,13 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     | true -> 
         // This doesn't count login failures towards account lockout
         // To enable password failures to trigger account lockout, change to shouldLockout: true
-        let result = 
-          async {
-            let! passSignIn = this.SignInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, shouldLockout = false)
-                              |> Async.AwaitTask
-            return passSignIn
-          } |> Async.StartAsTask
-
-        match result.Result with
+        let result = await(this.SignInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, shouldLockout = false))
+        match result with
         | SignInStatus.Success -> this.RedirectToLocal(returnUrl)
         | SignInStatus.LockedOut -> this.View("Lockout") :> ActionResult
         | SignInStatus.RequiresVerification -> 
             this.RedirectToAction("SendCode", { RouteValues.ReturnUrl = returnUrl; RememberMe = model.RememberMe }) :> ActionResult
-        //| SignInStatus.Failure: this will be caught by the _ match
-        | _ -> 
+        | SignInStatus.Failure | _  -> 
           this.ModelState.AddModelError("", "Invalid login attempt.")
           this.View(model) :> ActionResult
  
@@ -378,8 +371,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
       | SignInStatus.Success -> this.RedirectToLocal(returnUrl)
       | SignInStatus.LockedOut -> this.View("Lockout") :> ActionResult
       | SignInStatus.RequiresVerification -> this.RedirectToAction("SendCode", { RouteValues.ReturnUrl = returnUrl; RememberMe = false }) :> ActionResult
-      //| SignInStatus.Failure: taken care of by the default match
-      | _ -> 
+      | SignInStatus.Failure | _ -> 
         // If the user does not have an account, then prompt the user to create an account
         this.ViewData?ReturnUrl <- returnUrl
         this.ViewData?LoginProvider <- loginInfo.Result.Login.LoginProvider
