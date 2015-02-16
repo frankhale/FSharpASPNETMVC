@@ -69,7 +69,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     | true -> 
         // This doesn't count login failures towards account lockout
         // To enable password failures to trigger account lockout, change to shouldLockout: true
-        let result = await(this.SignInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, shouldLockout = false))
+        let result = await(fun () -> this.SignInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, shouldLockout = false))
         match result with
         | SignInStatus.Success -> this.RedirectToLocal(returnUrl)
         | SignInStatus.LockedOut -> this.View("Lockout") :> ActionResult
@@ -84,7 +84,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   [<AllowAnonymous>]
   member this.VerifyCode(provider:string, returnUrl:string, rememberMe:bool) =
     // Require that the user has already logged in via username/password or external login
-    let hasBeenVerified = await(this.SignInManager.HasBeenVerifiedAsync())
+    let hasBeenVerified = await(fun () -> this.SignInManager.HasBeenVerifiedAsync())
 
     match hasBeenVerified with
     | true -> this.View({ VerifyCodeViewModel.Provider = provider; ReturnUrl = returnUrl; RememberMe = rememberMe })
@@ -103,7 +103,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
         // If a user enters incorrect codes for a specified amount of time then the user account 
         // will be locked out for a specified amount of time. 
         // You can configure the account lockout settings in IdentityConfig
-        let twoFactorSignIn = await(this.SignInManager.TwoFactorSignInAsync(model.Provider, model.Code, isPersistent =  model.RememberMe, rememberBrowser = model.RememberBrowser))
+        let twoFactorSignIn = await(fun () -> this.SignInManager.TwoFactorSignInAsync(model.Provider, model.Code, isPersistent =  model.RememberMe, rememberBrowser = model.RememberBrowser))
 
         match twoFactorSignIn with
         | SignInStatus.Success -> this.RedirectToLocal(model.ReturnUrl)
@@ -127,11 +127,11 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     match this.ModelState.IsValid  with
     | true -> 
       let user = ApplicationUser(UserName = model.Email, Email = model.Email)
-      let um = await(this.UserManager.CreateAsync(user, model.Password))
+      let um = await(fun () -> this.UserManager.CreateAsync(user, model.Password))
       
       match um.Succeeded with 
       | true -> 
-          awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))        
+          awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))        
           // For more information on how to enable account confirmation and password reset please visit http://go.microsoft.com/fwlink/?LinkID=320771
           // Send an email with this link
           // string code = await UserManager.GenerateEmailConfirmationTokenAsync(user.Id);
@@ -153,7 +153,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     match userId, code with
     | null, null -> this.View("Error")
     | _ ->
-      let result = await(this.UserManager.ConfirmEmailAsync(userId, code))
+      let result = await(fun () -> this.UserManager.ConfirmEmailAsync(userId, code))
       let view = match result.Succeeded with
                   | true -> "ConfirmEmail"
                   | false -> "Error"
@@ -174,8 +174,8 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   member this.ForgotPassword(model:ForgotPasswordViewModel) =
     match this.ModelState.IsValid with
     | true ->
-        let user = await(this.UserManager.FindByNameAsync(model.Email))
-        let isEmailConfirmed = await(this.UserManager.IsEmailConfirmedAsync(user.Id))
+        let user = await(fun () -> this.UserManager.FindByNameAsync(model.Email))
+        let isEmailConfirmed = await(fun () -> this.UserManager.IsEmailConfirmedAsync(user.Id))
 
         match user, isEmailConfirmed with
         | null, false -> this.View("ForgotPasswordConfirmation")
@@ -214,12 +214,12 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
     match this.ModelState.IsValid with
     | false -> this.View(model) :> ActionResult
     | true ->
-      let user = await(this.UserManager.FindByNameAsync(model.Email))
+      let user = await(fun () -> this.UserManager.FindByNameAsync(model.Email))
       match user with
       // Don't reveal that the user does not exist
       | null -> this.RedirectToAction("ResetPasswordConfirmation", "Account") :> ActionResult
       | _ ->
-        let result = await(this.UserManager.ResetPasswordAsync(user.Id, model.Code, model.Password))
+        let result = await(fun () -> this.UserManager.ResetPasswordAsync(user.Id, model.Code, model.Password))
         this.AddErrors(result)
         match result.Succeeded with
         | true -> this.RedirectToAction("ResetPasswordConfirmation", "Account") :> ActionResult
@@ -244,12 +244,12 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   // GET: /Account/SendCode
   [<AllowAnonymous>]
   member this.SendCode(returnUrl:string, rememberMe:bool) =
-    let userId = await(this.SignInManager.GetVerifiedUserIdAsync())
+    let userId = await(fun () -> this.SignInManager.GetVerifiedUserIdAsync())
 
     match userId with
     | null -> this.View("Error")
     | _ -> 
-      let userFactors = await(this.UserManager.GetValidTwoFactorProvidersAsync(userId))
+      let userFactors = await(fun () -> this.UserManager.GetValidTwoFactorProvidersAsync(userId))
       let factorOptions = 
         userFactors
         |> Seq.map (fun purpose -> SelectListItem(Text = purpose, Value = purpose))
@@ -267,7 +267,7 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
       | false -> this.View() :> ActionResult
       | true -> 
         // Generate the token and send it
-        let sendTwoFactorCode = await(this.SignInManager.SendTwoFactorCodeAsync(model.SelectedProvider))
+        let sendTwoFactorCode = await(fun () -> this.SignInManager.SendTwoFactorCodeAsync(model.SelectedProvider))
         
         match sendTwoFactorCode with
         | false -> this.View("Error") :> ActionResult
@@ -278,13 +278,13 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
   // GET: /Account/ExternalLoginCallback
   [<AllowAnonymous>]
   member this.ExternalLoginCallback(returnUrl:string) =
-    let loginInfo = await(this.AuthenticationManager.GetExternalLoginInfoAsync())
+    let loginInfo = await(fun () -> this.AuthenticationManager.GetExternalLoginInfoAsync())
 
     match loginInfo with
     | null -> this.RedirectToAction("Login") :> ActionResult
     | _ ->
       // Sign in the user with this external login provider if the user already has a login
-      let externalSignIn = await(this.SignInManager.ExternalSignInAsync(loginInfo, isPersistent = false))
+      let externalSignIn = await(fun () -> this.SignInManager.ExternalSignInAsync(loginInfo, isPersistent = false))
 
       match externalSignIn with
       | SignInStatus.Success -> this.RedirectToLocal(returnUrl)
@@ -317,20 +317,20 @@ type AccountController(userManager:ApplicationUserManager, signInManager:Applica
           this.View(model) :> ActionResult
           // Get the information about the user from the external login provider
         | true -> 
-            let info = await(this.AuthenticationManager.GetExternalLoginInfoAsync())
+            let info = await(fun () -> this.AuthenticationManager.GetExternalLoginInfoAsync())
 
             match info with
             | null -> this.View("ExternalLoginFailure") :> ActionResult
             | _ -> 
               let user = ApplicationUser(UserName = model.Email, Email = model.Email)
-              let um = await(this.UserManager.CreateAsync(user))
+              let um = await(fun () -> this.UserManager.CreateAsync(user))
               let redirectToLocal : string =
                 match um.Succeeded with
                 | true ->
-                    let addLogin = await(this.UserManager.AddLoginAsync(user.Id, info.Login))                
+                    let addLogin = await(fun () -> this.UserManager.AddLoginAsync(user.Id, info.Login))                
                     match addLogin.Succeeded with
                     | true -> 
-                      awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
+                      awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
                       returnUrl
                     | false -> String.Empty
                 | false -> String.Empty                    

@@ -26,17 +26,11 @@ module Helpers =
   let (?<-) (viewData:ViewDataDictionary) (name:string) (value:'T) =
     viewData.Add(name, box value)
 
-  let awaitPlainTask(t : Task) =
-        (async {
-        let! result = t |> Async.AwaitIAsyncResult |> Async.Ignore
-        return result
-      } |> Async.StartAsTask).Result
+  let awaitPlainTask(t) =
+    (async { return! Async.AwaitIAsyncResult <| t() |> Async.Ignore } |> Async.StartAsTask).Result
 
   let await(t) =
-    (async {
-        let! result = t |> Async.AwaitTask
-        return result
-      } |> Async.StartAsTask).Result
+    (async { return! Async.AwaitTask <| t() } |> Async.StartAsTask).Result
 
 type EmailService() =
   interface IIdentityMessageService with

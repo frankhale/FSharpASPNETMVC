@@ -54,25 +54,25 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
     
     let userId = this.User.Identity.GetUserId()
     this.View({ IndexViewModel.HasPassword = this.HasPassword();
-                PhoneNumber = await(this.UserManager.GetPhoneNumberAsync(userId));
-                TwoFactor = await(this.UserManager.GetTwoFactorEnabledAsync(userId));
-                Logins = await(this.UserManager.GetLoginsAsync(userId));
-                BrowserRemembered = await(this.AuthenticationManager.TwoFactorBrowserRememberedAsync(userId))})
+                PhoneNumber = await(fun () -> this.UserManager.GetPhoneNumberAsync(userId));
+                TwoFactor = await(fun () -> this.UserManager.GetTwoFactorEnabledAsync(userId));
+                Logins = await(fun () -> this.UserManager.GetLoginsAsync(userId));
+                BrowserRemembered = await(fun () -> this.AuthenticationManager.TwoFactorBrowserRememberedAsync(userId))})
 
   //
   // POST: /Manage/RemoveLogin
   [<HttpPost>]
   [<ValidateAntiForgeryToken>]
   member this.RemoveLogin(loginProvider:string, providerKey:string) =
-    let result = await(this.UserManager.RemoveLoginAsync(this.User.Identity.GetUserId(), UserLoginInfo(loginProvider, providerKey)))
+    let result = await(fun () -> this.UserManager.RemoveLoginAsync(this.User.Identity.GetUserId(), UserLoginInfo(loginProvider, providerKey)))
     let message = 
       match result.Succeeded with
       | true -> 
-          let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+          let user = await(fun () -> this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
           match user with
           | null -> ManageMessageId.Error
           | _ ->
-            awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
+            awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
             ManageMessageId.RemoveLoginSuccess;
       | false -> ManageMessageId.Error
     
@@ -92,12 +92,12 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
     | false -> this.View(model) :> ActionResult
     | true ->
         // Generate the token and send it
-        let code = await(this.UserManager.GenerateChangePhoneNumberTokenAsync(this.User.Identity.GetUserId(), model.Number))
+        let code = await(fun () -> this.UserManager.GenerateChangePhoneNumberTokenAsync(this.User.Identity.GetUserId(), model.Number))
         if this.UserManager.SmsService <> null then
           let message = new IdentityMessage()
           message.Destination <- model.Number
           message.Body <- "Your security code is: " + code
-          awaitPlainTask(this.UserManager.SmsService.SendAsync(message))
+          awaitPlainTask(fun () -> this.UserManager.SmsService.SendAsync(message))
 
         this.RedirectToAction("VerifyPhoneNumber", { PhoneNumber.PhoneNumber = model.Number }) :> ActionResult
 
@@ -106,10 +106,10 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
   [<HttpPost>]
   [<ValidateAntiForgeryToken>]
   member this.EnableTwoFactorAuthentication() =
-    await(this.UserManager.SetTwoFactorEnabledAsync(this.User.Identity.GetUserId(), true)) |> ignore
-    let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+    await(fun () -> this.UserManager.SetTwoFactorEnabledAsync(this.User.Identity.GetUserId(), true)) |> ignore
+    let user = await(fun () -> this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
     if user <> null then
-      awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
+      awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
 
     this.RedirectToAction("Index", "Manage")
 
@@ -118,23 +118,23 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
   [<HttpPost>]
   [<ValidateAntiForgeryToken>]
   member this.DisableTwoFactorAuthentication() =
-    await(this.UserManager.SetTwoFactorEnabledAsync(this.User.Identity.GetUserId(), false)) |> ignore
-    let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+    await(fun () -> this.UserManager.SetTwoFactorEnabledAsync(this.User.Identity.GetUserId(), false)) |> ignore
+    let user = await(fun () -> this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
     if user <> null then
-      awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
+      awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
 
     this.RedirectToAction("Index", "Manage")
 
   //
   // GET: /Manage/VerifyPhoneNumber
   member this.VerifyPhoneNumber(phoneNumber:string) =
-      await(this.UserManager.GenerateChangePhoneNumberTokenAsync(this.User.Identity.GetUserId(), phoneNumber)) |> ignore
+      await(fun () -> this.UserManager.GenerateChangePhoneNumberTokenAsync(this.User.Identity.GetUserId(), phoneNumber)) |> ignore
       // Send an SMS through the SMS provider to verify the phone number
       match String.IsNullOrEmpty(phoneNumber) with
       | true -> this.View("Error")
       | false ->
           this.View({ VerifyPhoneNumberViewModel.PhoneNumber = phoneNumber })
-
+          
   //
   // POST: /Manage/VerifyPhoneNumber
   [<HttpPost>]
@@ -143,16 +143,16 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
     match this.ModelState.IsValid with
     | false -> this.View(model) :> ActionResult
     | true ->
-        let result = await(this.UserManager.ChangePhoneNumberAsync(this.User.Identity.GetUserId(), model.PhoneNumber, model.Code))
+        let result = await(fun () -> this.UserManager.ChangePhoneNumberAsync(this.User.Identity.GetUserId(), model.PhoneNumber, model.Code))
         match result.Succeeded with
         | true -> 
-            let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+            let user = await(fun () -> this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
             match user with
             | null ->
               this.ModelState.AddModelError("", "Failed to verify phone")
               this.View(model) :> ActionResult
             | _ ->
-              awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
+              awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
               this.RedirectToAction("Index", { Message.Message = ManageMessageId.AddPhoneSuccess }) :> ActionResult
         | false ->
           // If we got this far, something failed, redisplay form
@@ -161,18 +161,19 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
 
   member private this.AddErrors(result:IdentityResult) =
     result.Errors
-    |> Seq.map(fun error -> this.ModelState.AddModelError("", error))
+    |> Seq.iter(fun error -> this.ModelState.AddModelError("", error))
+    |> ignore
 
   //
   // GET: /Manage/RemovePhoneNumber
   member this.RemovePhoneNumber() =
-    let result = await(this.UserManager.SetPhoneNumberAsync(this.User.Identity.GetUserId(), null))
+    let result = await(fun () -> this.UserManager.SetPhoneNumberAsync(this.User.Identity.GetUserId(), null))
     match result.Succeeded with
     | false -> this.RedirectToAction("Index", { Message.Message = ManageMessageId.Error })
     | true ->   
-        let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+        let user = await(fun () -> this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
         if user <> null then
-          awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
+          awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
 
         this.RedirectToAction("Index", { Message.Message = ManageMessageId.RemovePhoneSuccess })
 
@@ -189,19 +190,19 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
     match this.ModelState.IsValid with
     | false -> this.View(model) :> ActionResult
     | true ->
-      let result = await(this.UserManager.ChangePasswordAsync(this.User.Identity.GetUserId(), model.OldPassword, model.NewPassword))
+      let result = await(fun () -> this.UserManager.ChangePasswordAsync(this.User.Identity.GetUserId(), model.OldPassword, model.NewPassword))
       match result.Succeeded with
       | false -> 
         this.AddErrors(result) |> ignore
         this.View(model) :> ActionResult
       | true -> 
-        let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+        let user = await(fun () -> this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
         match user with
         | null -> 
           this.AddErrors(result) |> ignore
           this.View(model) :> ActionResult
         | _ ->
-          awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
+          awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
           this.RedirectToAction("Index", { Message.Message = ManageMessageId.ChangePasswordSuccess }) :> ActionResult
 
   //
@@ -216,12 +217,12 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
   member this.SetPassword(model:SetPasswordViewModel) =
     match this.ModelState.IsValid with
     | true ->
-        let result = await(this.UserManager.AddPasswordAsync(this.User.Identity.GetUserId(), model.NewPassword))
+        let result = await(fun () -> this.UserManager.AddPasswordAsync(this.User.Identity.GetUserId(), model.NewPassword))
         match result.Succeeded with
         | true ->
-          let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+          let user = await(fun () -> this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
           if user <> null then
-            awaitPlainTask(this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
+            awaitPlainTask(fun () -> this.SignInManager.SignInAsync(user, isPersistent = false, rememberBrowser = false))
 
           this.RedirectToAction("Index", { Message = ManageMessageId.SetPasswordSuccess }) :> ActionResult
         | false -> 
@@ -241,11 +242,11 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
         | ManageMessageId.Error -> "An error has occurred."
         | _ -> ""
     
-    let user = await(this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
+    let user = await(fun () -> this.UserManager.FindByIdAsync(this.User.Identity.GetUserId()))
     match user with
     | null -> this.View("Error")
     | _ ->
-      let userLogins = await(this.UserManager.GetLoginsAsync(this.User.Identity.GetUserId()))
+      let userLogins = await(fun () -> this.UserManager.GetLoginsAsync(this.User.Identity.GetUserId()))
       let otherLogins = 
         (query {
           for auth in this.AuthenticationManager.GetExternalAuthenticationTypes() do
@@ -270,12 +271,12 @@ type ManageController(userManager:ApplicationUserManager, signInManager:Applicat
   // GET: /Manage/LinkLoginCallback
   member this.LinkLoginCallback() =
     let XsrfKey = "XsrfId"
-    let loginInfo = await(this.AuthenticationManager.GetExternalLoginInfoAsync(XsrfKey, this.User.Identity.GetUserId()))
+    let loginInfo = await(fun () -> this.AuthenticationManager.GetExternalLoginInfoAsync(XsrfKey, this.User.Identity.GetUserId()))
     
     match loginInfo with
     | null -> this.RedirectToAction("ManageLogins", { Message = ManageMessageId.Error })
     | _ ->
-      let result = await(this.UserManager.AddLoginAsync(this.User.Identity.GetUserId(), loginInfo.Login))
+      let result = await(fun () -> this.UserManager.AddLoginAsync(this.User.Identity.GetUserId(), loginInfo.Login))
       match result.Succeeded with
       | true -> this.RedirectToAction("ManageLogins")
       | false -> this.RedirectToAction("ManageLogins", { Message = ManageMessageId.Error })
